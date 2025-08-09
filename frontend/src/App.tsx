@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import MapView from './components/MapView'
-import SidePanel from './components/SidePanel'
-import ScoreLegend from './components/ScoreLegend'
-import CompareDrawer from './components/CompareDrawer'
+import { SidePanel } from './components/SidePanel'
+import { ScoreLegend } from './components/ScoreLegend'
+import { CompareDrawer } from './components/CompareDrawer'
 import { AreaData, ScoringWeights } from './lib/api'
 
 const DEFAULT_WEIGHTS: ScoringWeights = {
