@@ -14,23 +14,16 @@ import {
   RotateCcw,
   Info
 } from 'lucide-react';
-
-interface ScoreWeights {
-  growth: number;
-  supply: number;
-  tension: number;
-  access: number;
-  return: number;
-}
+import { ScoringWeights } from '../types';
 
 interface SidePanelProps {
-  weights: ScoreWeights;
-  onWeightsChange: (weights: ScoreWeights) => void;
+  weights: ScoringWeights;
+  onWeightsChange: (weights: ScoringWeights) => void;
   selectedArea: string | null;
   areaData: any;
 }
 
-const defaultWeights: ScoreWeights = {
+const defaultWeights: ScoringWeights = {
   growth: 25,
   supply: 20,
   tension: 20,
@@ -40,35 +33,35 @@ const defaultWeights: ScoreWeights = {
 
 const scoreCategories = [
   {
-    key: 'growth' as keyof ScoreWeights,
+    key: 'growth' as keyof ScoringWeights,
     title: 'Croissance',
     icon: TrendingUp,
     description: 'Potentiel d\'appréciation des prix',
     color: 'text-green-600'
   },
   {
-    key: 'supply' as keyof ScoreWeights,
+    key: 'supply' as keyof ScoringWeights,
     title: 'Offre',
     icon: Home,
     description: 'Disponibilité du logement',
     color: 'text-blue-600'
   },
   {
-    key: 'tension' as keyof ScoreWeights,
+    key: 'tension' as keyof ScoringWeights,
     title: 'Tension',
     icon: AlertTriangle,
     description: 'Pression sur le marché',
     color: 'text-orange-600'
   },
   {
-    key: 'access' as keyof ScoreWeights,
+    key: 'access' as keyof ScoringWeights,
     title: 'Accessibilité',
     icon: MapPin,
     description: 'Transport et services',
     color: 'text-purple-600'
   },
   {
-    key: 'return' as keyof ScoreWeights,
+    key: 'return' as keyof ScoringWeights,
     title: 'Rendement',
     icon: DollarSign,
     description: 'Ratio loyer/prix',
@@ -84,7 +77,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
 }) => {
   const [localWeights, setLocalWeights] = useState(weights);
 
-  const handleWeightChange = (category: keyof ScoreWeights, value: number[]) => {
+  const handleWeightChange = (category: keyof ScoringWeights, value: number[]) => {
     const newWeights = { ...localWeights, [category]: value[0] };
     setLocalWeights(newWeights);
     onWeightsChange(newWeights);

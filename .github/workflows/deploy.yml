@@ -122,7 +122,8 @@ jobs:
     name: Deploy API to Production
     needs: [test, build]
     runs-on: ubuntu-latest
-    environment: production
+    environment:
+      name: production
 
     steps:
     - name: Checkout code

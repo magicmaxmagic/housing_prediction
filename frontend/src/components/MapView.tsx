@@ -112,7 +112,7 @@ const MapView: React.FC<MapViewProps> = ({
         ['boolean', ['feature-state', 'hover'], false],
         '#ffffff',
         ['get', 'color']
-      ],
+      ] as ['case', any, any, any],
       'fill-opacity': [
         'case',
         ['get', 'isSelected'],
@@ -120,7 +120,7 @@ const MapView: React.FC<MapViewProps> = ({
         ['boolean', ['feature-state', 'hover'], false],
         0.8,
         0.6
-      ] as any // Type assertion to satisfy LayerProps typing
+      ] as ['case', any, any, any, any, any]
     }
   }
 

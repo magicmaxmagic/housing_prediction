@@ -8,12 +8,19 @@ export interface AreaData {
   score: number
   quantile: number
   last_updated: string
+  s_total: number
+  s_growth: number
+  s_supply: number
+  s_tension: number
+  s_access: number
+  s_return: number
+  as_of: string
   scores?: {
     growth: number
     supply: number
     tension: number
-    accessibility: number
-    returns: number
+    access: number
+    return: number
     total: number
   }
 }
@@ -22,8 +29,8 @@ export interface ScoringWeights {
   growth: number
   supply: number
   tension: number
-  accessibility: number
-  returns: number
+  access: number
+  return: number
 }
 
 export interface DetailedScores {
@@ -34,8 +41,8 @@ export interface DetailedScores {
     growth: number
     supply: number
     tension: number
-    accessibility: number
-    returns: number
+    access: number
+    return: number
     total: number
   }
   weights: ScoringWeights
@@ -150,8 +157,8 @@ export class InvestMTLAPI {
       params.append('w_growth', weights.growth.toString())
       params.append('w_supply', weights.supply.toString())
       params.append('w_tension', weights.tension.toString())
-      params.append('w_accessibility', weights.accessibility.toString())
-      params.append('w_returns', weights.returns.toString())
+      params.append('w_access', weights.access.toString())
+      params.append('w_return', weights.return.toString())
     }
 
     const url = `/scores/${areaId}?${params.toString()}`
@@ -240,8 +247,8 @@ export function calculateWeightedScore(
     scores.growth * weights.growth +
     scores.supply * weights.supply +
     scores.tension * weights.tension +
-    scores.accessibility * weights.accessibility +
-    scores.returns * weights.returns
+    scores.access * weights.access +
+    scores.return * weights.return
   )
   
   return Math.round(total * 10) / 10

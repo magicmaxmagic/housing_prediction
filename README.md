@@ -26,23 +26,40 @@
 - **API REST** avec **Hono** framework
 - **TypeScript** avec validation de schémas
 - Rate limiting et CORS configurés
-- Intégration **D1** (base de données), **R2** (stockage) et **KV** (cache)
+- Intégration **D1** (base de données) et **KV** (cache/config)
 
 ### ETL Pipeline (GitHub Actions + Python)
 - **Python 3.11** avec **pandas**, **scikit-learn**, **XGBoost**
 - Ingestion automatisée depuis sources ouvertes (Montréal, StatCan, CMHC)
 - **Feature engineering** et modèles prédictifs avec **SHAP** explainability
-- Export vers **Cloudflare R2** (Parquet) et **D1** (SQLite)
+- Export vers **Cloudflare D1** (SQLite) et **GitHub Releases** (artifacts JSON)
 
 ### Infrastructure (100% Free Tiers)
 - **Cloudflare Pages** : Hébergement frontend
 - **Cloudflare Workers** : API serverless
-- **Cloudflare D1** : Base de données SQLite
-- **Cloudflare R2** : Stockage objets (données parquet)
+- **Cloudflare D1** : Base de données SQLite (stockage des données transformées)
 - **Cloudflare KV** : Cache et configuration
 - **GitHub Actions** : CI/CD et ETL automatisé
+- **GitHub Releases** : Stockage des artifacts ETL (JSON/CSV)
 
 ## 🚀 Démarrage rapide
+
+**⚡ Déploiement en une commande :**
+```bash
+./deploy.sh  # Configure et déploie tout automatiquement !
+```
+
+**🛠️ Développement local :**  
+```bash
+./dev.sh start  # Lance API + Frontend en local
+```
+
+**📋 Toutes les commandes :**
+```bash
+make help  # Voir toutes les options disponibles
+```
+
+> 📖 **Voir [AUTOMATION.md](AUTOMATION.md) pour le guide détaillé des scripts**
 
 ### Prérequis
 - Node.js 18+
@@ -74,7 +91,21 @@ npm install -g wrangler
 wrangler login
 
 # Création des ressources Cloudflare
-cd api && wrangler d1 create investmtl-db
+# Note: Vérifiez d'abord si les ressources existent déjà
+wrangler d1 list  # Vérifier les bases existantes
+wrangler kv namespace list  # Vérifier les namespaces KV
+
+# Créer uniquement si nécessaire
+wrangler d1 create investmtl-db  # Créer si n'existe pas
+wrangler kv namespace create investmtl-config  # Créer si n'existe pas
+
+# Pas besoin de R2 - on utilise GitHub Releases pour le stockage
+# Alternative via dashboard Cloudflare:
+# 1. Aller sur dash.cloudflare.com
+# 2. D1 Database > Create database > "investmtl-db" 
+# 3. Workers KV > Create namespace > "investmtl-config"
+
+# Pages pour le frontend
 cd ../frontend && wrangler pages create investmtl
 ```
 
@@ -83,7 +114,6 @@ cd ../frontend && wrangler pages create investmtl
 # GitHub Secrets à configurer
 CF_ACCOUNT_ID=your_cloudflare_account_id
 CF_API_TOKEN=your_cloudflare_api_token
-CF_R2_BUCKET=investmtl-data
 CF_D1_DATABASE_ID=your_database_id
 CF_KV_NAMESPACE_ID=your_kv_namespace_id
 ```
@@ -91,7 +121,13 @@ CF_KV_NAMESPACE_ID=your_kv_namespace_id
 ### 4. Déploiement initial
 ```bash
 # Initialisation base de données
+# Option 1: Via CLI (si wrangler fonctionne)
 cd api && wrangler d1 execute investmtl-db --file=../data_schema/d1_init.sql
+
+# Option 2: Via dashboard Cloudflare
+# 1. Aller sur dash.cloudflare.com > D1 Database
+# 2. Cliquer sur votre base "investmtl-db"
+# 3. Onglet "Console" > coller le contenu de data_schema/d1_init.sql
 
 # Déploiement API
 wrangler deploy
@@ -127,7 +163,7 @@ Le pipeline ETL s'exécute quotidiennement à 6h UTC via GitHub Actions :
 2. **Features** (`features.py`) : Engineering et nettoyage des données
 3. **Forecast** (`forecast.py`) : Génération des prévisions 1-24 mois
 4. **Scoring** (`score.py`) : Calcul des scores d'investissement pondérés
-5. **Export** (`export_artifacts.py`) : Sauvegarde vers Cloudflare D1/R2/KV
+5. **Export** (`export_artifacts.py`) : Sauvegarde vers Cloudflare D1/KV et GitHub Releases
 
 ## 🛠️ Développement
 
@@ -212,7 +248,7 @@ Application 100% gratuite pour évaluer où investir à Montréal selon la crois
 
 - **Frontend**: React + Vite + TypeScript + Tailwind + shadcn/ui + MapLibre GL
 - **Backend**: Cloudflare Workers + Hono + TypeScript  
-- **Données**: Cloudflare R2 (Parquet/JSON) + D1 (SQLite) + KV
+- **Données**: Cloudflare D1 (SQLite) + KV (cache) + GitHub Releases (artifacts)
 - **ETL/ML**: Python + DuckDB + pandas + scikit-learn + XGBoost
 - **CI/CD**: GitHub Actions
 - **Hébergement**: Cloudflare Pages + Workers
@@ -263,13 +299,11 @@ Créer `.env.example` dans chaque dossier:
 CLOUDFLARE_ACCOUNT_ID=your_account_id
 CLOUDFLARE_API_TOKEN=your_api_token
 D1_DATABASE_ID=your_d1_db_id
-R2_BUCKET_NAME=investmtl-data
 KV_NAMESPACE_ID=your_kv_namespace
 
 # etl/.env
 CLOUDFLARE_ACCOUNT_ID=your_account_id
 CLOUDFLARE_API_TOKEN=your_api_token
-R2_BUCKET_NAME=investmtl-data
 ```
 
 ## 🏃‍♂️ Développement local
@@ -381,10 +415,9 @@ npx wrangler pages project create investmtl
 npx wrangler d1 create investmtl-db
 
 # KV Namespace
-npx wrangler kv:namespace create investmtl-config
+npx wrangler kv namespace create investmtl-config
 
-# R2 Bucket
-npx wrangler r2 bucket create investmtl-data
+# Pas besoin de R2 - données stockées en D1 + GitHub Releases
 ```
 
 2. **Initialiser D1**:
@@ -399,7 +432,6 @@ Ajouter ces secrets dans GitHub Settings > Secrets:
 - `CLOUDFLARE_ACCOUNT_ID`
 - `D1_DATABASE_ID`
 - `KV_NAMESPACE_ID`
-- `R2_BUCKET_NAME`
 
 ### Pipeline de déploiement
 
@@ -418,7 +450,6 @@ Ajouter ces secrets dans GitHub Settings > Secrets:
 - **Workers**: 100,000 requêtes/jour, 10ms CPU max
 - **Pages**: 500 builds/mois, 1 build concurrent
 - **D1**: 5 millions de lectures/mois, 100k écritures
-- **R2**: 10GB stockage, 1 million requêtes classe A/mois
 - **KV**: 100k lectures/jour, 1k écritures
 
 ### GitHub Actions

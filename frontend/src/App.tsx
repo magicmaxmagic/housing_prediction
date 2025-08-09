@@ -9,8 +9,8 @@ const DEFAULT_WEIGHTS: ScoringWeights = {
   growth: 0.25,
   supply: 0.20,
   tension: 0.20,
-  accessibility: 0.20,
-  returns: 0.15,
+  access: 0.20,
+  return: 0.15,
 }
 
 function App() {
@@ -55,8 +55,8 @@ function App() {
     <div className={`h-screen flex ${isDarkMode ? 'dark' : ''}`}>
       {/* Side Panel */}
       <SidePanel
-        selectedAreaId={selectedAreaId}
-        scoringWeights={scoringWeights}
+        selectedArea={selectedAreaId}
+        weights={scoringWeights}
         onWeightsChange={handleWeightsChange}
         onCompareArea={handleCompareArea}
         isDarkMode={isDarkMode}

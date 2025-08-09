@@ -13,17 +13,12 @@ RATE_LIMIT_WINDOW = "60"
 [[d1_databases]]
 binding = "DB"
 database_name = "investmtl-db"
-# database_id = "your-d1-database-id"  # Set via wrangler or dashboard
-
-# R2 Bucket binding 
-[[r2_buckets]]
-binding = "BUCKET"
-bucket_name = "investmtl-data"
+database_id = "737f69f1-cc9c-4822-99e4-fe71a6377f99"
 
 # KV Namespace binding
 [[kv_namespaces]]
 binding = "KV"
-id = "your-kv-namespace-id"  # Set via wrangler or dashboard
+id = "b7c3c11966044deab589860400ee320c"
 # preview_id = "your-preview-kv-namespace-id"
 
 # Analytics Engine binding (optional)

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   X, 
@@ -15,17 +14,12 @@ import {
   Calendar
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaData } from '../types';
 
-interface AreaData {
-  id: string;
-  name: string;
-  s_growth: number;
-  s_supply: number;
-  s_tension: number;
-  s_access: number;
-  s_return: number;
-  s_total: number;
-  as_of: string;
+interface CompareDrawerProps {
+  areas: AreaData[];
+  onClose: () => void;
+  onRemoveArea: (areaId: string) => void;
 }
 
 interface ForecastData {
