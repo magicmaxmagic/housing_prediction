@@ -3,6 +3,9 @@ import { cors } from 'hono/cors';
 import { areaRoutes } from './routes/areas';
 import { scoresRoutes } from './routes/scores';
 import { forecastRoutes } from './routes/forecast';
+import authRoutes from './routes/auth';
+import favoritesRoutes from './routes/favorites';
+import predictionsRoutes from './routes/predictions';
 import { 
   getEvaluationUnits, 
   getInvestmentZones, 
@@ -18,6 +21,7 @@ export interface Env {
   CORS_ORIGINS?: string;
   RATE_LIMIT_REQUESTS?: string;
   RATE_LIMIT_WINDOW?: string;
+  JWT_SECRET: string;
 }
 
 // Create main Hono app
@@ -128,6 +132,9 @@ app.use('/property-search/*', rateLimit);
 app.route('/areas', areaRoutes);
 app.route('/scores', scoresRoutes);  
 app.route('/forecast', forecastRoutes);
+app.route('/auth', authRoutes);
+app.route('/favorites', favoritesRoutes);
+app.route('/predictions', predictionsRoutes);
 
 // Real Estate Data Endpoints
 app.get('/evaluation-units', (c) => getEvaluationUnits(c.req.raw, c.env));

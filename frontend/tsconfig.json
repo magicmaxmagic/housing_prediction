@@ -21,5 +21,12 @@
     }
   },
   "include": ["src"],
+  "exclude": [
+    "src/App.backup.tsx",
+    "src/App.simple.tsx",
+    "src/App.corrupted.tsx",
+    "src/**/*.backup.*",
+    "src/**/__archive__/**"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

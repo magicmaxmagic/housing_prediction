@@ -6,6 +6,10 @@ Test script pour collect_areas_demography.py
 import sys
 from pathlib import Path
 import logging
+import requests
+import pandas as pd
+import geopandas as gpd
+import pyogrio
 
 # Ajouter le répertoire parent au path pour importer notre module
 sys.path.append(str(Path(__file__).parent))
@@ -20,10 +24,7 @@ except ImportError as e:
 def test_dependencies():
     """Tester que toutes les dépendances sont disponibles."""
     try:
-        import requests
-        import pandas as pd
-        import geopandas as gpd
-        import pyogrio
+        
         print("✅ Toutes les dépendances sont disponibles")
         return True
     except ImportError as e:

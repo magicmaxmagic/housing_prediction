@@ -1,0 +1,208 @@
+name: Monthly ETL and Model Update
+
+on:
+  schedule:
+    # Run on the 1st day of every month at 2 AM UTC
+    - cron: '0 2 1 * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      update_models:
+        description: 'Update ML models'
+        required: false
+        default: true
+        type: boolean
+      full_etl:
+        description: 'Run full ETL process'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  monthly-update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: 'backend/package-lock.json'
+
+    - name: Install Python dependencies
+      run: |
+        cd ml_pipeline
+        pip install -r requirements.txt
+
+    - name: Install Node.js dependencies
+      run: |
+        cd backend
+        npm ci
+
+    - name: Set up environment variables
+      run: |
+        echo "CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" >> $GITHUB_ENV
+        echo "CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}" >> $GITHUB_ENV
+        echo "D1_DATABASE_ID=${{ secrets.D1_DATABASE_ID }}" >> $GITHUB_ENV
+        echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> $GITHUB_ENV
+        echo "MONTREAL_OPEN_DATA_API_KEY=${{ secrets.MONTREAL_OPEN_DATA_API_KEY }}" >> $GITHUB_ENV
+
+    - name: Run data collection and ETL
+      if: ${{ github.event.inputs.full_etl != 'false' }}
+      run: |
+        cd data_pipeline
+        echo "Starting monthly ETL process..."
+        
+        # Run data collection scripts
+        python collect_property_data.py --incremental
+        python collect_rental_data.py --incremental
+        python collect_demographic_data.py --update
+        
+        # Process and clean data
+        python process_raw_data.py --month=$(date +%Y-%m)
+        
+        # Calculate investment metrics
+        python calculate_investment_scores.py --all-zones
+        
+        echo "ETL process completed successfully"
+
+    - name: Update zone geometries
+      run: |
+        cd data_pipeline
+        echo "Updating zone geometries from Montreal Open Data..."
+        python update_zone_geometries.py --source=montreal-opendata
+
+    - name: Train and update ML models
+      if: ${{ github.event.inputs.update_models != 'false' }}
+      run: |
+        cd ml_pipeline
+        echo "Training updated ML models..."
+        
+        # Train new models with latest data
+        python train_models.py --retrain-all
+        
+        # Validate model performance
+        python validate_models.py --threshold=0.75
+        
+        # Generate new predictions
+        python generate_predictions.py --all-zones
+        
+        echo "ML model update completed successfully"
+
+    - name: Update database via Cloudflare D1
+      run: |
+        cd backend
+        echo "Updating Cloudflare D1 database..."
+        
+        # Deploy database migrations if any
+        npx wrangler d1 migrations apply investmtl-db --remote
+        
+        # Upload processed data to D1
+        node scripts/upload_monthly_data.js
+        
+        echo "Database update completed successfully"
+
+    - name: Deploy backend updates
+      run: |
+        cd backend
+        echo "Deploying backend to Cloudflare Workers..."
+        npx wrangler deploy --compatibility-date=$(date +%Y-%m-%d)
+
+    - name: Run data quality checks
+      run: |
+        cd scripts
+        echo "Running data quality and consistency checks..."
+        
+        # Check data completeness
+        python quality_checks.py --check-completeness
+        
+        # Validate prediction accuracy
+        python quality_checks.py --validate-predictions
+        
+        # Check API endpoints
+        node health_check.js --production
+
+    - name: Generate monthly report
+      run: |
+        cd scripts
+        echo "Generating monthly update report..."
+        python generate_monthly_report.py --month=$(date +%Y-%m) --output=./reports/
+        
+    - name: Upload report artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: monthly-report-${{ github.run_number }}
+        path: scripts/reports/
+        retention-days: 90
+
+    - name: Send notification on success
+      if: success()
+      run: |
+        echo "Monthly update completed successfully!"
+        echo "Date: $(date)"
+        echo "Commit: ${{ github.sha }}"
+        # Add webhook notification here if needed
+
+    - name: Send notification on failure
+      if: failure()
+      run: |
+        echo "Monthly update failed!"
+        echo "Please check the logs and take corrective action."
+        echo "Date: $(date)"
+        echo "Commit: ${{ github.sha }}"
+        # Add alert notification here if needed
+
+  backup:
+    runs-on: ubuntu-latest
+    needs: monthly-update
+    if: success()
+    
+    steps:
+    - name: Backup database
+      run: |
+        echo "Creating monthly database backup..."
+        # Add database backup logic here
+        # This could export D1 database to cloud storage
+
+    - name: Backup ML models
+      run: |
+        echo "Backing up trained ML models..."
+        # Add model backup logic here
+        # This could upload models to cloud storage with versioning
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [monthly-update, backup]
+    if: always()
+    
+    steps:
+    - name: Send comprehensive status notification
+      run: |
+        STATUS="${{ needs.monthly-update.result }}"
+        BACKUP_STATUS="${{ needs.backup.result }}"
+        
+        echo "Monthly Update Status: $STATUS"
+        echo "Backup Status: $BACKUP_STATUS"
+        echo "Timestamp: $(date)"
+        
+        # Here you would send notifications via email, Slack, Discord, etc.
+        # Example webhook call:
+        # curl -X POST -H 'Content-type: application/json' \
+        #   --data "{\"text\":\"InvestMTL Monthly Update: $STATUS\"}" \
+        #   ${{ secrets.SLACK_WEBHOOK_URL }}

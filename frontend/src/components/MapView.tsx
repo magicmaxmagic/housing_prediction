@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Map, { Source, Layer, Popup } from 'react-map-gl/maplibre'
 import type { MapRef } from 'react-map-gl/maplibre'
-import { api, AreasResponse, AreaData, ScoringWeights } from '../lib/api'
+import { api, AreasResponse, AreaData } from '../lib/api'
 import { getQuantileColor } from '../lib/api'
 
 // Montreal bounds
@@ -10,13 +10,11 @@ const MONTREAL_BOUNDS: [number, number, number, number] = [-74.2, 45.3, -73.0, 4
 interface MapViewProps {
   onAreaSelect: (areaId: string) => void
   selectedAreaId: string | null
-  scoringWeights: ScoringWeights
 }
 
 const MapView: React.FC<MapViewProps> = ({ 
   onAreaSelect, 
-  selectedAreaId,
-  scoringWeights 
+  selectedAreaId
 }) => {
   const mapRef = useRef<MapRef>(null)
   const [areasData, setAreasData] = useState<AreasResponse | null>(null)
@@ -73,10 +71,7 @@ const MapView: React.FC<MapViewProps> = ({
       const feature = features[0]
       if (feature.source === 'areas' && feature.properties) {
         setHoveredArea({
-          id: feature.properties.id,
-          name: feature.properties.name,
-          score: feature.properties.score,
-          quantile: feature.properties.quantile,
+          ...feature.properties,
           last_updated: feature.properties.last_updated || ''
         })
       }
@@ -130,19 +125,33 @@ const MapView: React.FC<MapViewProps> = ({
     paint: {
       'line-color': [
         'case',
-        ['boolean', ['get', 'isSelected'], false],
+        ['get', 'isSelected'],
         '#000000',
-        ['boolean', ['feature-state', 'hover'], false],
+        ['feature-state', 'hover'],
         '#333333',
         '#666666'
+      ] as [
+        'case',
+        any,
+        string,
+        any,
+        string,
+        string
       ],
       'line-width': [
         'case',
-        ['boolean', ['get', 'isSelected'], false],
+        ['get', 'isSelected'],
         3,
-        ['boolean', ['feature-state', 'hover'], false],
+        ['feature-state', 'hover'],
         2,
         1
+      ] as [
+        'case',
+        any,
+        number,
+        any,
+        number,
+        number
       ]
     }
   }

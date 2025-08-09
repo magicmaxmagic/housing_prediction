@@ -1,12 +1,13 @@
 import { ScoringWeights } from './api'
+// Ensure ScoringWeights in './api' includes: growth, supply, tension, access, return
 
 // Default scoring weights
 export const DEFAULT_WEIGHTS: ScoringWeights = {
   growth: 0.25,
   supply: 0.20,
   tension: 0.20,
-  accessibility: 0.20,
-  returns: 0.15,
+  access: 0.20,
+  return: 0.15,
 }
 
 // Compute weighted score on the client side
@@ -21,11 +22,11 @@ export function computeWeightedScore(
     : weights
 
   const weightedSum = (
-    subscores.growth * normalizedWeights.growth +
-    subscores.supply * normalizedWeights.supply +
-    subscores.tension * normalizedWeights.tension +
-    subscores.accessibility * normalizedWeights.accessibility +
-    subscores.returns * normalizedWeights.returns
+    (subscores.growth || 0) * (normalizedWeights.growth || 0) +
+    (subscores.supply || 0) * (normalizedWeights.supply || 0) +
+    (subscores.tension || 0) * (normalizedWeights.tension || 0) +
+    (subscores.access || 0) * (normalizedWeights.access || 0) +
+    (subscores.return || 0) * (normalizedWeights.return || 0)
   )
 
   return Math.round(weightedSum * 10) / 10 // Round to 1 decimal place
@@ -95,8 +96,8 @@ export function normalizeWeights(weights: ScoringWeights): ScoringWeights {
     growth: weights.growth / sum,
     supply: weights.supply / sum,
     tension: weights.tension / sum,
-    accessibility: weights.accessibility / sum,
-    returns: weights.returns / sum,
+  access: weights.access / sum,
+  return: weights.return / sum,
   }
 }
 
@@ -167,13 +168,13 @@ export const SCORE_DESCRIPTIONS = {
     high: 'Low vacancy, strong rent growth, tight market',
     low: 'High vacancy, weak rent growth, loose market'
   },
-  accessibility: {
+  access: {
     name: 'Accessibility',
     description: 'Transit access and proximity to amenities',
     high: 'Excellent transit access and nearby amenities',
     low: 'Limited transit access, fewer amenities'
   },
-  returns: {
+  return: {
     name: 'Return Potential',
     description: 'Rental yield and capital appreciation potential',
     high: 'Strong rental yields and appreciation potential',

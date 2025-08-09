@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -5,18 +6,8 @@ import InteractiveMap from './components/InteractiveMap';
 import PredictionForm from './components/PredictionForm';
 import Favorites from './components/Favorites';
 import Export from './components/Export';
-import { useAuth } from './hooks/useAuth';
-
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  return <>{children}</>;
-};
 
 function App() {
-  console.log('🚀 New App.tsx is loading with all new components!');
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
@@ -28,8 +19,8 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/map" element={<InteractiveMap />} />
               <Route path="/predictions" element={<PredictionForm />} />
-              <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
-              <Route path="/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />
+              <Route path="/favorites" element={<Favorites />} />
+              <Route path="/export" element={<Export />} />
             </Routes>
           </div>
         </main>
