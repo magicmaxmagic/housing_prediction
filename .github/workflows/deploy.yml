@@ -1,0 +1,251 @@
+# GitHub Actions workflow for deployment
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Allow manual deployment
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: |
+          api/package-lock.json
+          frontend/package-lock.json
+
+    - name: Install API dependencies
+      run: |
+        cd api
+        npm ci
+
+    - name: Install frontend dependencies
+      run: |
+        cd frontend  
+        npm ci
+
+    - name: Run API tests
+      run: |
+        cd api
+        npm run test
+      env:
+        NODE_ENV: test
+
+    - name: Run frontend tests  
+      run: |
+        cd frontend
+        npm run test
+      env:
+        NODE_ENV: test
+
+    - name: Type check API
+      run: |
+        cd api
+        npm run type-check
+
+    - name: Type check frontend
+      run: |
+        cd frontend
+        npm run type-check
+
+    - name: Lint API
+      run: |
+        cd api
+        npm run lint
+
+    - name: Lint frontend
+      run: |
+        cd frontend
+        npm run lint
+
+  build:
+    name: Build Applications
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: |
+          api/package-lock.json
+          frontend/package-lock.json
+
+    - name: Install API dependencies
+      run: |
+        cd api
+        npm ci
+
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+      env:
+        NODE_ENV: production
+        VITE_API_BASE_URL: https://investmtl-api.workers.dev
+
+    - name: Upload frontend build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-build
+        path: frontend/dist/
+        retention-days: 1
+
+  deploy-api:
+    name: Deploy API to Production
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install Wrangler
+      run: npm install -g wrangler
+
+    - name: Install API dependencies
+      run: |
+        cd api
+        npm ci
+
+    - name: Deploy API to Cloudflare Workers
+      run: |
+        cd api
+        wrangler deploy --name investmtl-api --env production
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+    - name: Test API deployment
+      run: |
+        echo "Testing API deployment..."
+        sleep 10 # Wait for deployment to propagate
+        
+        # Test health endpoint
+        response=$(curl -s -w "%{http_code}" -o /dev/null https://investmtl-api.workers.dev/health)
+        if [ "$response" != "200" ]; then
+          echo "API health check failed with status: $response"
+          exit 1
+        fi
+        
+        # Test areas endpoint
+        response=$(curl -s -w "%{http_code}" -o /dev/null https://investmtl-api.workers.dev/api/v1/areas)
+        if [ "$response" != "200" ]; then
+          echo "API areas endpoint failed with status: $response"
+          exit 1
+        fi
+        
+        echo "API deployment test passed!"
+
+  deploy-frontend:
+    name: Deploy Frontend to Production
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install Wrangler
+      run: npm install -g wrangler
+
+    - name: Download frontend build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: frontend-build
+        path: frontend/dist/
+
+    - name: Deploy frontend to Cloudflare Pages
+      run: |
+        cd frontend
+        wrangler pages deploy dist --project-name investmtl --compatibility-date 2024-01-01
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+    - name: Test frontend deployment
+      run: |
+        echo "Testing frontend deployment..."
+        sleep 15 # Wait for deployment to propagate
+        
+        # Test homepage
+        response=$(curl -s -w "%{http_code}" -o /dev/null https://investmtl.pages.dev/)
+        if [ "$response" != "200" ]; then
+          echo "Frontend deployment failed with status: $response"
+          exit 1
+        fi
+        
+        echo "Frontend deployment test passed!"
+
+  post-deploy:
+    name: Post-deployment Tasks
+    needs: [deploy-api, deploy-frontend]
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: Warm up API
+      run: |
+        echo "Warming up API endpoints..."
+        curl -s https://investmtl-api.workers.dev/health > /dev/null
+        curl -s https://investmtl-api.workers.dev/api/v1/areas > /dev/null
+        curl -s https://investmtl-api.workers.dev/api/v1/scores > /dev/null
+        echo "API warmed up successfully"
+
+    - name: Update deployment status
+      run: |
+        echo "Deployment completed successfully!"
+        echo "API: https://investmtl-api.workers.dev"
+        echo "Frontend: https://investmtl.pages.dev"
+        echo "Deployment time: $(date -u)"
+
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "✅ Deployment to production completed successfully"
+        echo "The application is now live at https://investmtl.pages.dev"
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Production deployment failed"
+        echo "Check the logs above for details"

@@ -1,0 +1,183 @@
+# GitHub Actions workflow for ETL pipeline
+name: ETL Pipeline
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC (2 AM EST)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Allow manual triggering
+  push:
+    paths:
+      - 'etl/**'
+      - '.github/workflows/etl.yml'
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  etl:
+    name: Run ETL Pipeline
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd etl
+        pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Configure Cloudflare credentials
+      run: |
+        echo "Setting up Cloudflare configuration..."
+        mkdir -p ~/.cloudflare
+      env:
+        CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+
+    - name: Run data ingestion
+      run: |
+        cd etl
+        echo "Starting data ingestion..."
+        python ingest_mtl.py
+        python ingest_statcan.py  
+        python ingest_cmhc.py
+      env:
+        CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+
+    - name: Run feature engineering
+      run: |
+        cd etl
+        echo "Running feature engineering..."
+        python features.py
+      env:
+        CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+
+    - name: Generate forecasts
+      run: |
+        cd etl
+        echo "Generating forecasts..."
+        python forecast.py
+      env:
+        CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+
+    - name: Calculate investment scores
+      run: |
+        cd etl
+        echo "Calculating investment scores..."
+        python score.py
+      env:
+        CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+
+    - name: Export artifacts to Cloudflare
+      run: |
+        cd etl
+        echo "Exporting artifacts..."
+        python export_artifacts.py
+      env:
+        CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+        CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+
+    - name: Validate data quality
+      run: |
+        cd etl
+        python -c "
+        import pandas as pd
+        import os
+        
+        print('=== Data Quality Report ===')
+        
+        # Check if output files exist
+        files_to_check = [
+            'output/areas.parquet',
+            'output/scores.parquet', 
+            'output/forecasts.parquet'
+        ]
+        
+        for file_path in files_to_check:
+            if os.path.exists(file_path):
+                df = pd.read_parquet(file_path)
+                print(f'{file_path}: {len(df)} records')
+                if len(df) == 0:
+                    print(f'WARNING: {file_path} is empty!')
+            else:
+                print(f'ERROR: {file_path} not found!')
+        
+        print('Data quality check completed.')
+        "
+
+    - name: Upload artifacts for debugging
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: etl-debug-logs
+        path: |
+          etl/logs/
+          etl/output/
+        retention-days: 7
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "ETL pipeline failed. Check the logs for details."
+        echo "You can also download debug artifacts from the Actions tab."
+
+  # Optional: Deploy updated data to staging for testing
+  deploy-staging:
+    name: Deploy to Staging
+    needs: etl
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' # Only on push, not scheduled runs
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Wrangler
+      run: npm install -g wrangler
+
+    - name: Deploy API to staging
+      run: |
+        cd api
+        wrangler deploy --name investmtl-api-staging --env staging
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+    - name: Deploy frontend to staging
+      run: |
+        cd frontend
+        npm ci
+        npm run build
+        wrangler pages deploy dist --project-name investmtl-staging
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+    - name: Run smoke tests
+      run: |
+        echo "Running basic smoke tests..."
+        # Test API health
+        curl -f https://investmtl-api-staging.workers.dev/health || exit 1
+        # Test frontend
+        curl -f https://investmtl-staging.pages.dev/ || exit 1
+        echo "Staging deployment successful!"

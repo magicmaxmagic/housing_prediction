@@ -1,0 +1,38 @@
+name = "investmtl-api"
+main = "src/index.ts"
+compatibility_date = "2023-12-01"
+
+# Variables (these will be set via dashboard or CLI)
+[vars]
+API_VERSION = "1.0.0"
+CORS_ORIGINS = "*"
+RATE_LIMIT_REQUESTS = "100"
+RATE_LIMIT_WINDOW = "60"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "investmtl-db"
+# database_id = "your-d1-database-id"  # Set via wrangler or dashboard
+
+# R2 Bucket binding 
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "investmtl-data"
+
+# KV Namespace binding
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-namespace-id"  # Set via wrangler or dashboard
+# preview_id = "your-preview-kv-namespace-id"
+
+# Analytics Engine binding (optional)
+# [[analytics_engine_datasets]]
+# binding = "ANALYTICS"
+
+# Environment-specific configurations
+[env.production]
+name = "investmtl-api-prod"
+
+[env.staging]  
+name = "investmtl-api-staging"
