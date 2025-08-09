@@ -3,14 +3,14 @@ import { Env } from '../index';
 
 export const forecastRoutes = new Hono<{ Bindings: Env }>();
 
-// Helper function to get forecasts from R2 or D1
+// Helper function to get forecasts from KV cache or D1
 async function getForecastData(env: Env, metric: string, areaId: string, horizon?: number) {
   try {
-    // Try to get from R2 first (full forecast data)
-    const r2Object = await env.BUCKET.get('forecasts.json');
+    // Try to get from KV cache first (full forecast data)
+    const cachedForecasts = await env.KV.get('forecasts', 'json');
     
-    if (r2Object) {
-      const forecasts = await r2Object.json() as any;
+    if (cachedForecasts) {
+      const forecasts = cachedForecasts as any;
       
       // Look for matching forecast
       for (const [key, forecast] of Object.entries(forecasts)) {
@@ -29,7 +29,7 @@ async function getForecastData(env: Env, metric: string, areaId: string, horizon
         if (matchesMetric && matchesArea) {
           return {
             ...forecastData,
-            source: 'r2',
+            source: 'kv',
             key: key
           };
         }
@@ -103,7 +103,7 @@ forecastRoutes.get('/:metric/:areaId', async (c) => {
     }
     
     // Validate metric
-    const validMetrics = ['rent', 'average_rent', 'vacancy_rate', 'housing_starts'];
+    const validMetrics = ['price_sqft', 'rent_1br', 'rent_2br', 'vacancy_rate', 'housing_starts'];
     if (!validMetrics.includes(metric)) {
       return c.json({
         error: {
@@ -273,14 +273,14 @@ forecastRoutes.get('/summary/:areaId', async (c) => {
     
     const availableMetrics = (results as any[]).map(row => row.metric);
     
-    // If no D1 data, try to get from R2
+    // If no D1 data, try to get from KV cache
     let forecastSummary: any = {};
     
     if (availableMetrics.length === 0) {
       try {
-        const r2Object = await c.env.BUCKET.get('forecasts.json');
-        if (r2Object) {
-          const allForecasts = await r2Object.json() as any;
+        const cachedForecasts = await c.env.KV.get('forecasts', 'json');
+        if (cachedForecasts) {
+          const allForecasts = cachedForecasts as any;
           
           for (const [key, forecast] of Object.entries(allForecasts)) {
             const forecastData = forecast as any;
@@ -306,7 +306,7 @@ forecastRoutes.get('/summary/:areaId', async (c) => {
           }
         }
       } catch (error) {
-        console.error('Error fetching R2 forecasts:', error);
+        console.error('Error fetching KV forecasts:', error);
       }
     } else {
       // Get forecast summaries from D1

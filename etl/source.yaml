@@ -1,0 +1,57 @@
+version: 1
+area_system: "statcan_da_2021"   # unités = aires de diffusion (DA 2021)
+areas:
+  # Shapefile/GeoJSON des DA sur l'Île de Montréal
+  - id: statcan_da_2021_mtl
+    url: https://<URL_STATCAN_SHAPE_OR_GEOJSON_MONTREAL>
+    format: geojson
+    dest: data/raw/areas_da_2021_mtl.geojson
+    freq: static
+
+demography:
+  - id: statcan_profile_da
+    url: https://<URL_CSV_PROFIL_DA_2021>
+    format: csv
+    dest: data/raw/statcan_profile_da.csv
+    freq: 5y
+    fields: [da_id, population, households, median_income, youth_share, senior_share]
+
+rent_vacancy:
+  - id: cmhc_rental_market
+    url: https://<URL_CSV_CMHC_RENT_VACANCY>
+    format: csv
+    dest: data/raw/cmhc_rental_market.csv
+    freq: yearly
+    fields: [geo_name, date, bedroom_type, avg_rent, vacancy_rate]
+
+starts:
+  - id: cmhc_housing_starts
+    url: https://<URL_CSV_CMHC_STARTS>
+    format: csv
+    dest: data/raw/cmhc_housing_starts.csv
+    freq: monthly
+    fields: [cma, date, structure_type, units]
+
+permits:
+  - id: montreal_permits
+    url: https://donnees.montreal.ca/ville-de-montreal/permis-de-construire/download
+    format: geojson
+    dest: data/raw/montreal_permits.geojson
+    freq: weekly
+    fields: [date, description, category, nb_units, lon, lat]
+
+poi:
+  - id: osm_poi
+    url: https://overpass-api.de/api/interpreter
+    method: post
+    body: |
+      [out:json][timeout:60];
+      area["name"="Montréal"]->.searchArea;
+      (
+        node["amenity"~"school|college|university|hospital|clinic"](area.searchArea);
+        node["shop"](area.searchArea);
+        node["leisure"~"park|fitness_centre"](area.searchArea);
+      );
+      out center;
+    dest: data/raw/osm_poi.json
+    freq: monthly

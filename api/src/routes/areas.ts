@@ -3,15 +3,14 @@ import { Env } from '../index';
 
 export const areaRoutes = new Hono<{ Bindings: Env }>();
 
-// Helper function to get areas data from R2 or D1
+// Helper function to get areas data from KV cache or D1
 async function getAreasData(env: Env, params: any = {}) {
   try {
-    // Try to get from R2 first (cached/optimized data)
-    const r2Object = await env.BUCKET.get('api_data.json');
+    // Try to get from KV cache first
+    const cachedData = await env.KV.get('areas_data', 'json');
     
-    if (r2Object) {
-      const data = await r2Object.json() as any;
-      return data.areas || [];
+    if (cachedData) {
+      return (cachedData as any).areas || [];
     }
     
     // Fallback to D1 query
@@ -44,11 +43,10 @@ async function getAreasData(env: Env, params: any = {}) {
 // Helper function to get geographic data
 async function getAreasGeometry(env: Env) {
   try {
-    const r2Object = await env.BUCKET.get('areas_topojson.json');
+    const geoData = await env.KV.get('areas_topojson', 'json');
     
-    if (r2Object) {
-      const geoData = await r2Object.json();
-      return geoData;
+    if (geoData) {
+      return geoData as any;
     }
     
     return { type: 'FeatureCollection', features: [] };

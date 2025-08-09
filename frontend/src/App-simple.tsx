@@ -1,58 +1,15 @@
-import React, { useState } from 'react'
-import MapView from './components/MapView'
+import { useState } from 'react'
 import RealEstateData from './components/RealEstateData'
-import { SidePanel } from './components/SidePanel'
-import { ScoreLegend } from './components/ScoreLegend'
-import { CompareDrawer } from './components/CompareDrawer'
-import { AreaData, ScoringWeights } from './lib/api'
 import { Map, Building2 } from 'lucide-react'
 
-const DEFAULT_WEIGHTS: ScoringWeights = {
-  growth: 0.25,
-  supply: 0.20,
-  tension: 0.20,
-  access: 0.20,
-  return: 0.15,
-}
-
 function App() {
-  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null)
-  const [scoringWeights, setScoringWeights] = useState<ScoringWeights>(DEFAULT_WEIGHTS)
-  const [comparedAreas, setComparedAreas] = useState<AreaData[]>([])
-  const [showCompareDrawer, setShowCompareDrawer] = useState(false)
+  const [activeTab, setActiveTab] = useState<'map' | 'data'>('data')
   const [isDarkMode, setIsDarkMode] = useState(false)
-  const [activeTab, setActiveTab] = useState<'map' | 'data'>('map')
-
-  const handleAreaSelect = (areaId: string) => {
-    setSelectedAreaId(areaId)
-  }
-
-  const handleWeightsChange = (newWeights: ScoringWeights) => {
-    setScoringWeights(newWeights)
-  }
-
-  const handleCompareArea = (area: AreaData) => {
-    if (comparedAreas.length < 3 && !comparedAreas.find(a => a.id === area.id)) {
-      setComparedAreas([...comparedAreas, area])
-    }
-  }
-
-  const handleRemoveFromComparison = (areaId: string) => {
-    setComparedAreas(comparedAreas.filter(area => area.id !== areaId))
-  }
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode)
     document.documentElement.classList.toggle('dark')
   }
-
-  React.useEffect(() => {
-    // Set initial dark mode based on system preference
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setIsDarkMode(true)
-      document.documentElement.classList.add('dark')
-    }
-  }, [])
 
   return (
     <div className={`h-screen ${isDarkMode ? 'dark' : ''}`}>
@@ -109,45 +66,16 @@ function App() {
       {/* Contenu principal */}
       <div className="h-[calc(100vh-80px)] relative">
         {activeTab === 'map' && (
-          <div className="flex h-full">
-            {/* Side Panel */}
-            <SidePanel
-              selectedArea={selectedAreaId}
-              weights={scoringWeights}
-              onWeightsChange={handleWeightsChange}
-            />
-
-            {/* Map Container */}
-            <div className="flex-1 relative">
-              <MapView
-                selectedAreaId={selectedAreaId}
-                onAreaSelect={handleAreaSelect}
-                scoringWeights={scoringWeights}
-              />
-
-              {/* Legend */}
-              <div className="absolute bottom-4 left-4 z-10">
-                <ScoreLegend />
-              </div>
-
-              {/* Compare Button */}
-              {comparedAreas.length > 0 && (
-                <button
-                  onClick={() => setShowCompareDrawer(true)}
-                  className="absolute top-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-md shadow-lg hover:bg-primary/90 transition-colors z-10"
-                >
-                  Compare Areas ({comparedAreas.length})
-                </button>
-              )}
+          <div className="flex items-center justify-center h-full bg-gray-100 dark:bg-gray-900">
+            <div className="text-center">
+              <Map className="h-24 w-24 mx-auto mb-4 text-gray-400" />
+              <h2 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">
+                Vue Carte
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400">
+                La vue carte sera disponible prochainement
+              </p>
             </div>
-
-            {/* Compare Drawer */}
-            {showCompareDrawer && (
-              <CompareDrawer
-                onClose={() => setShowCompareDrawer(false)}
-                onRemoveArea={handleRemoveFromComparison}
-              />
-            )}
           </div>
         )}
         

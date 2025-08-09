@@ -3,11 +3,16 @@ import { cors } from 'hono/cors';
 import { areaRoutes } from './routes/areas';
 import { scoresRoutes } from './routes/scores';
 import { forecastRoutes } from './routes/forecast';
+import { 
+  getEvaluationUnits, 
+  getInvestmentZones, 
+  getMarketData, 
+  searchProperties 
+} from './real-estate-endpoints';
 
 // Environment bindings interface
 export interface Env {
   DB: D1Database;
-  BUCKET: R2Bucket;
   KV: KVNamespace;
   API_VERSION?: string;
   CORS_ORIGINS?: string;
@@ -114,11 +119,21 @@ const rateLimit = async (c: any, next: any) => {
 app.use('/areas/*', rateLimit);
 app.use('/scores/*', rateLimit);
 app.use('/forecast/*', rateLimit);
+app.use('/evaluation-units/*', rateLimit);
+app.use('/investment-zones/*', rateLimit);
+app.use('/market-data/*', rateLimit);
+app.use('/property-search/*', rateLimit);
 
 // Mount route modules
 app.route('/areas', areaRoutes);
 app.route('/scores', scoresRoutes);  
 app.route('/forecast', forecastRoutes);
+
+// Real Estate Data Endpoints
+app.get('/evaluation-units', (c) => getEvaluationUnits(c.req.raw, c.env));
+app.get('/investment-zones', (c) => getInvestmentZones(c.req.raw, c.env));
+app.get('/market-data', (c) => getMarketData(c.req.raw, c.env));
+app.get('/property-search', (c) => searchProperties(c.req.raw, c.env));
 
 // 404 handler
 app.notFound((c) => {

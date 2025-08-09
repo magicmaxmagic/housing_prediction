@@ -68,6 +68,9 @@ etl/raw_data/
 etl/downloads/
 etl/cache/
 etl/tmp/
+data/
+data/processed/
+data/raw
 
 # Generated datasets
 etl/output/
@@ -82,6 +85,12 @@ etl/results/
 large_data/
 data_exports/
 
+# Gros fichiers CSV (> 10MB)
+*.csv.gz
+*_large.csv
+unites_evaluation_fonciere.csv
+osm_montreal*.json
+
 # Model files (peuvent être volumineux)
 etl/models/
 etl/artifacts/
@@ -91,6 +100,7 @@ etl/artifacts/
 
 # Logs ETL
 etl/logs/
+logs/
 *.log
 *.out
 *.err
@@ -106,6 +116,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Vite dev dependencies cache
+frontend/node_modules/.vite/
+frontend/node_modules/.vite/deps_temp*/
 
 # Build outputs
 frontend/dist/
@@ -252,6 +266,8 @@ $RECYCLE.BIN/
 *.db
 *.sqlite
 *.sqlite3
+api/database.sqlite
+database_export.sql
 
 # Database dumps
 *.dump
@@ -318,6 +334,16 @@ sandbox/
 # Fichiers de benchmark
 benchmark_results/
 performance_tests/
+
+# Gros fichiers gouvernementaux (> 50MB)
+**/quebec_open_data_*
+**/statistics_canada_*
+**/donnees_montreal_*
+**/montreal_evaluation_*
+
+# Fichiers temporaires de développement
+frontend/src/*-simple.*
+frontend/index.html.bak
 
 # ============================================
 # END InvestMTL .gitignore
